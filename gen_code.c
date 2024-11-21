@@ -1,6 +1,11 @@
-// Not done yet
+// Christian Morton
+// gen_code.c: code generation file, includes function bodies
 #include <string.h>
-#include literal_table.h
+#include "gen_code.h"
+#include "literal_table.h"
+#include "id_use.h"
+#include "utilities.h"
+#include "regname.h"
 
 // Initialize the code generator
 void gen_code_initialize()
@@ -29,7 +34,7 @@ static void gen_code_output_program(BOFFILE bf, code_seq main_cs) {
 }
 
 // (Stub for:) Generate code for prog into bf
-void gen_code_program(BOFFILE bf, program_t prog) {
+void gen_code_program(BOFFILE bf, block_t prog) {
 	
 }
 
@@ -43,8 +48,8 @@ code_seq gen_code_var_decl(var_decl_t vd) {
 	
 }
 
-// (Stub for:) Generate code for the identifiers in idents with type vt in reverse order
-code_seq gen_code_idents(idents_t idents, type_exp_e vt) {
+// (Stub for:) Generate code for the identifiers in ident_list with type vt in reverse order
+code_seq gen_code_ident_list(ident_list_t ident_list, type_exp_e vt) {
 	
 }
 
