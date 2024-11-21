@@ -43,7 +43,9 @@ code_seq gen_code_var_decls(var_decls_t vds) {
     code_seq ret = code_seq_empty();
     var_decl_t *vdp = vds.var_decls;
     while(vdp != NULL){
-        ret = code_seq_concat(gen_code_var_decl(*vdp), ret);
+        code_seq new_var_decl = gen_code_var_decl(*vdp);
+        code_seq_concat(&new_var_decl, ret);
+        ret = new_var_decl;
         vdp = vdp->next;
     }
     return ret;	
@@ -54,8 +56,8 @@ code_seq gen_code_var_decl(var_decl_t vd) {
 	return gen_code_ident_list(vd.idents, vd.type);
 }
 
-// (Stub for:) Generate code for the identifiers in ident_list with type vt in reverse order
-code_seq gen_code_ident_list(ident_list_t ident_list, type_exp_e vt) {
+// (Stub for:) Generate code for the identifiers in ident_list in reverse order
+code_seq gen_code_ident_list(ident_list_t ident_list) {
 	code_seq ret = code_seq_empty();
     ident_t *idp = ident_list.idents;
     while(idp != NULL){
