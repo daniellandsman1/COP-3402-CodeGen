@@ -1,4 +1,4 @@
-// Christian Morton
+// Christian Morton, Ryan Rohan
 // gen_code.h: code generation header file, includes function declarations
 #ifndef _GEN_CODE_H
 #define _GEN_CODE_H
