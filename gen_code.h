@@ -23,7 +23,7 @@ extern code_seq gen_code_stmt(stmt_t stmt);
 
 extern code_seq gen_code_assign_stmt(assign_stmt_t stmt);
 
-extern code_seq gen_code_begin_stmt(begin_stmt_t stmt); // may not be needed
+extern code_seq gen_code_begin_stmt(block_stmt_t stmt); // may not be needed
 
 extern code_seq gen_code_stmts(stmts_t stmts);
 
@@ -31,17 +31,17 @@ extern code_seq gen_code_if_stmt(if_stmt_t stmt);
 
 extern code_seq gen_code_read_stmt(read_stmt_t stmt);
 
-extern code_seq gen_code_write_stmt(write_stmt_t stmt);
+extern code_seq gen_code_write_stmt(print_stmt_t stmt);
 
 extern code_seq gen_code_expr(expr_t exp);
 
 extern code_seq gen_code_binary_op_expr(binary_op_expr_t exp);
 
-extern code_seq gen_code_op(token_t op, type_exp_e typ);
+extern code_seq gen_code_op(token_t op, expr_kind_e typ);
 
 extern code_seq gen_code_arith_op(token_t arith_op);
 
-extern code_seq gen_code_rel_op(token_t rel_op, type_exp_e typ);
+extern code_seq gen_code_rel_op(token_t rel_op, expr_kind_e typ);
 
 extern code_seq gen_code_ident(ident_t id);
 
