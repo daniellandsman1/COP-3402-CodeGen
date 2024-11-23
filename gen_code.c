@@ -1,12 +1,16 @@
-// Christian Morton, Michael John, Ryan Rohan
+// Christian Morton, Michael John, Ryan Rohan, Daniel Landsman
 // gen_code.c: code generation file, includes function bodies
 #include <string.h>
+#include <limits.h>
 #include "gen_code.h"
+#include "code.h"
 #include "literal_table.h"
 #include "id_use.h"
 #include "utilities.h"
 #include "regname.h"
 #include "ast.h"
+
+#define STACK_SPACE 4096
 
 // Initialize the code generator
 void gen_code_initialize()
@@ -15,27 +19,45 @@ void gen_code_initialize()
 }
 
 // (Stub for:) Write all instructions in cs to bf in order
-static void gen_code_output_seq(BOFFILE bf, code_seq cs) {
-    for (size_t i = 0; i < code_seq_length(cs); i++) {
-        bof_write_instruction(bf, code_seq_get(cs, i));
+static void gen_code_output_seq(BOFFILE bf, code_seq cs)
+{
+    while (!code_seq_is_empty(cs))
+    {
+        bin_instr_t instr = (code_seq_first(cs))->instr;
+        instruction_write_bin_instr(bf, instr);
+        cs = code_seq_rest(cs);
     }
 }
 
 // (Stub for:) Return a header appropriate for the given code
-static BOFHeader gen_code_program_header(code_seq main_cs) {
+static BOFHeader gen_code_program_header(code_seq main_cs) 
+{
     BOFHeader header;
     bof_write_magic_to_header(&header);
-    header.text_length = code_seq_length(main_cs);
-    header.data_length = literal_table_size();
+    header.text_start_address = 0;
+    header.text_length = code_seq_size(main_cs) * BYTES_PER_WORD;
+
+    int data_start = MAX(header.text_length, 1024) + BYTES_PER_WORD;
+    header.data_start_address = data_start;
+    header.data_length = literal_table_size() * BYTES_PER_WORD;
+
+    // do we need to add data_start + header.data_start_address? seems redundant
+    // but that's what's in the professor's code
+    int stack_bottom = data_start + header.data_length + STACK_SPACE;
+    header.stack_bottom_addr = stack_bottom;
+    
     return header;
 }
 
 // (Stub for:)
-static void gen_code_output_literals(BOFFILE bf) {
+static void gen_code_output_literals(BOFFILE bf) 
+{
     literal_table_start_iteration();
-    while (literal_table_iteration_has_next()) {
-        bof_write_literal(bf, literal_table_iteration_next());
+    while (literal_table_iteration_has_next()) 
+    {
+        bof_write_word(bf, literal_table_iteration_next());
     }
+    literal_table_end_iteration();
 }
 
 // (Stub for:) Write the program's BOFFILE to bf

@@ -3,6 +3,7 @@
 #ifndef _LITERAL_TABLE_H
 #define _LITERAL_TABLE_H
 #include <stdbool.h>
+#include <stdlib.h>
 
 // Pre-Conditions: None
 // Post-Conditions: Initializes an empty literal table
