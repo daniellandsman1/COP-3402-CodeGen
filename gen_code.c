@@ -123,10 +123,10 @@ code_seq gen_code_stmt(stmt_t stmt) {
     return code_seq_empty();
 }
 
-// (Stub for:) Generate code for ASSIGN stmt
+// Generate code for ASSIGN stmt
 code_seq gen_code_assign_stmt(assign_stmt_t stmt) 
 {
-    code_seq ret = code_seq_empty(); // Store our built-up code sequence
+    code_seq ret = code_seq_empty(); // Store the built-up code sequence
 
     // Evaluate expression and push onto stack
     code_seq expr_cs = gen_code_expr(*stmt.expr);
@@ -138,9 +138,11 @@ code_seq gen_code_assign_stmt(assign_stmt_t stmt)
     code_seq fp_cs = code_utils_compute_fp(3, lex_addr->levelsOutward);
     code_seq_concat(&ret, fp_cs);
 
-    // Store result of expression into variable
+    // Get offset of variable into its AR
     unsigned int ofst = lex_addr->offsetInAR;
     if (ofst > USHRT_MAX) bail_with_error("Offset of LHS variable in assignment statement is too large!");
+
+    // Store result of expression into variable
     code* store_code = code_cpw(3, ofst, SP, 0);
     code_seq_add_to_end(&ret, store_code);
 
@@ -173,12 +175,37 @@ code_seq gen_code_if_stmt(if_stmt_t stmt) {
   
 }
 
-// (Stub for:) Generate code for the READ stmt
-code_seq gen_code_read_stmt(read_stmt_t stmt) {
-    code_seq ret = code_seq_empty();
-    code_seq_add(&ret, code_read());
-    lexical_address *addr = id_use_2_lexical_address(stmt.idu);
-    code_seq_add(&ret, code_store(*addr));
+// Generate code for the READ stmt
+code_seq gen_code_read_stmt(read_stmt_t stmt) 
+{
+    code_seq ret = code_seq_empty(); // Store the built-up code sequence
+
+    // Allocate stack space for the character that is read
+    code_seq alloc_cs = code_utils_allocate_stack_space(1);
+    code_seq_concat(&ret, alloc_cs);
+
+    // Push read character on top of stack
+    code* read_code = code_rch(SP, 0);
+    code_seq_add_to_end(&ret, read_code);
+
+    // Get lexical address of variable on left hand side of statement
+    if (stmt.idu == NULL) bail_with_error("Read statement has NULL id_use field!");
+    lexical_address *lex_addr = id_use_2_lexical_address(stmt.idu);
+    code_seq fp_cs = code_utils_compute_fp(3, lex_addr->levelsOutward);
+    code_seq_concat(&ret, fp_cs); 
+
+    // Get offset of variable into its AR
+    unsigned int ofst = lex_addr->offsetInAR;
+    if (ofst > USHRT_MAX) bail_with_error("Offset of LHS variable in read statement is too large!");
+
+    // Store result of expression into variable
+    code* store_code = code_cpw(3, ofst, SP, 0);
+    code_seq_add_to_end(&ret, store_code);
+
+    // Deallocate stack space that was allocated at beginning of function
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+    code_seq_concat(&ret, dealloc_cs);
+
     return ret;
 }
 
