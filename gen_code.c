@@ -4,6 +4,7 @@
 #include <limits.h>
 #include "gen_code.h"
 #include "code.h"
+#include "code_utils.h"
 #include "literal_table.h"
 #include "id_use.h"
 #include "utilities.h"
@@ -123,12 +124,30 @@ code_seq gen_code_stmt(stmt_t stmt) {
 }
 
 // (Stub for:) Generate code for ASSIGN stmt
-code_seq gen_code_assign_stmt(assign_stmt_t stmt) {
+code_seq gen_code_assign_stmt(assign_stmt_t stmt) 
+{
+    code_seq ret = code_seq_empty(); // Store our built-up code sequence
+
+    // Evaluate expression and push onto stack
     code_seq expr_cs = gen_code_expr(*stmt.expr);
-    code_seq ret = code_seq_empty();
-    code_seq_concat(&ret, expr_cs);
-    lexical_address *addr = id_use_2_lexical_address(stmt.idu);
-    code_seq_add(&ret, code_store(*addr));
+    code_seq_concat(&ret, expr_cs); // Put it in the sequence
+
+    // Get lexical address of variable on left hand side of statement
+    if (stmt.idu == NULL) bail_with_error("Assignment statement has NULL id_use field!");
+    lexical_address *lex_addr = id_use_2_lexical_address(stmt.idu);
+    code_seq fp_cs = code_utils_compute_fp(3, lex_addr->levelsOutward);
+    code_seq_concat(&ret, fp_cs);
+
+    // Store result of expression into variable
+    unsigned int ofst = lex_addr->offsetInAR;
+    if (ofst > USHRT_MAX) bail_with_error("Offset of LHS variable in assignment statement is too large!");
+    code* store_code = code_cpw(3, ofst, SP, 0);
+    code_seq_add_to_end(&ret, store_code);
+
+    // Deallocate stack space that was allocated by gen_code_expr
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+    code_seq_concat(&ret, dealloc_cs);
+
     return ret;
 }
 
@@ -172,6 +191,7 @@ code_seq gen_code_write_stmt(print_stmt_t stmt) {
 }
 
 // (Stub for:) Generate code for the expression exp. Put result at the top of the stack
+// MAKE SURE EACH GEN_CODE FUNCTION ALLOCATES STACK SPACE
 code_seq gen_code_expr(expr_t exp) {
     switch (exp.expr_kind) {
         case expr_bin:
