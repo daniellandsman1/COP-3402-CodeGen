@@ -31,7 +31,7 @@ extern code_seq gen_code_if_stmt(if_stmt_t stmt);
 
 extern code_seq gen_code_read_stmt(read_stmt_t stmt);
 
-extern code_seq gen_code_write_stmt(print_stmt_t stmt);
+extern code_seq gen_code_print_stmt(print_stmt_t stmt);
 
 extern code_seq gen_code_expr(expr_t exp);
 

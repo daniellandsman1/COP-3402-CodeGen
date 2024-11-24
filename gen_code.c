@@ -209,11 +209,23 @@ code_seq gen_code_read_stmt(read_stmt_t stmt)
     return ret;
 }
 
-// (Stub for:) Generate code for the WRITE stmt
-code_seq gen_code_write_stmt(print_stmt_t stmt) {
-    code_seq expr_cs = gen_code_expr(stmt.expr);
-    code_seq ret = expr_cs;
-    code_seq_add(&ret, code_write());
+// Generate code for the PRINT stmt
+code_seq gen_code_print_stmt(print_stmt_t stmt)
+{
+    code_seq ret = code_seq_empty(); // Store the built-up code sequence
+
+    // Evaluate expression and push onto stack
+    code_seq expr_cs = gen_code_expr(*stmt.expr);
+    code_seq_concat(&ret, expr_cs); // Put it in the sequence
+
+    // Print integer value of expression on top of stack to standard output
+    code* print_code = code_pint(SP, 0);
+    code_seq_add_to_end(&ret, print_code);
+
+    // Deallocate stack space that was allocated by gen_code_expr
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+    code_seq_concat(&ret, dealloc_cs);
+
     return ret;
 }
 
