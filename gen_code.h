@@ -23,11 +23,13 @@ extern code_seq gen_code_stmt(stmt_t stmt);
 
 extern code_seq gen_code_assign_stmt(assign_stmt_t stmt);
 
-extern code_seq gen_code_begin_stmt(block_stmt_t stmt); // may not be needed
-
 extern code_seq gen_code_stmts(stmts_t stmts);
 
+extern code_seq gen_code_begin_stmt(block_stmt_t stmt); // may not be needed
+
 extern code_seq gen_code_if_stmt(if_stmt_t stmt);
+
+extern code_seq gen_code_condition(condition_t cond);
 
 extern code_seq gen_code_read_stmt(read_stmt_t stmt);
 

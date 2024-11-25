@@ -224,8 +224,8 @@ code_seq gen_code_condition(condition_t cond)
 
     switch (cond.cond_kind)
     {
+        // Relational condition: expr1 rel_op expr2
         case ck_rel:
-            // Relational condition: expr1 rel_op expr2
             code_seq left_cs = gen_code_expr(cond.data.rel_op_cond.expr1);
             code_seq right_cs = gen_code_expr(cond.data.rel_op_cond.expr2);
             code_seq rel_op_cs = gen_code_rel_op(cond.data.rel_op_cond.rel_op, expr_bin);
@@ -235,19 +235,53 @@ code_seq gen_code_condition(condition_t cond)
             code_seq_concat(&ret, rel_op_cs);
             break;
 
+        // Divisibility condition: dividend % divisor == 0
         case ck_db:
-            // Divisibility condition: dividend % divisor == 0
-            code_seq dividend_cs = gen_code_expr(cond.data.db_cond.dividend);
+            
+            // Evaluate the expressions for dividend and divisor and push onto stack
+            // Make sure dividend ends up on top so it can be used as dividend in DIV instruction
             code_seq divisor_cs = gen_code_expr(cond.data.db_cond.divisor);
-
-            code_seq_concat(&ret, dividend_cs);
+            code_seq dividend_cs = gen_code_expr(cond.data.db_cond.dividend);
             code_seq_concat(&ret, divisor_cs);
+            code_seq_concat(&ret, dividend_cs);
 
-            code *mod_code = code_mod(3, SP, 0); // Modulo instruction
-            code_seq_add_to_end(&ret, mod_code);
+            // Compute division, which places remainder in HI register
+            code* div_code = code_div(SP, 1);
+            code_seq_add_to_end(&ret, div_code);
 
-            code *test_zero = code_beq(3, 0, code_utils_new_label());
-            code_seq_add_to_end(&ret, test_zero);
+            // Fetch remainder and place at SP + 1, where divisor was
+            code* cfhi_code = code_cfhi(SP, 1);
+            code_seq_add_to_end(&ret, cfhi_code);
+
+            // Push 0 onto the stack (replacing dividend) to compare
+            code* push_zero_code = code_lit(SP, 0, 0);
+            code_seq_add_to_end(&ret, push_zero_code);
+
+            // Skip over next two instructions if remainder is equal to 0
+            code* compare_zero_code = code_beq(SP, 1, 2)
+            code_seq_add_to_end(&ret, compare_zero_code);
+
+            // Push 0 (false) on stack, replacing remainder, not divisible
+            code* push_false_code = code_lit(SP, 1, 0);
+            code_seq_add_to_end(&ret, push_false_code);
+
+            // Skip over next instruction that pushes true on stack
+            code* skip_push_one_code = code_jrel(1);
+            code_seq_add_to_end(&ret, skip_push_one_code);
+
+            // Put 1 (true) on stack, divisible
+            code* push_one_code = code_lit(SP, 1, 1);
+            code_seq_add_to_end(&ret, push_one_code);
+
+            // Deallocate the 0 at top of stack, making the truth value the
+            // new top of the stack
+            code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+
+            //code *mod_code = code_mod(3, SP, 0); // Modulo instruction
+            //code_seq_add_to_end(&ret, mod_code);
+
+            //code *test_zero = code_beq(3, 0, code_utils_new_label());
+            //code_seq_add_to_end(&ret, test_zero);
             break;
 
         default:
