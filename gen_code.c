@@ -258,7 +258,7 @@ code_seq gen_code_condition(condition_t cond)
             code_seq_add_to_end(&ret, push_zero_code);
 
             // Skip over next two instructions if remainder is equal to 0
-            code* compare_zero_code = code_beq(SP, 1, 2)
+            code* compare_zero_code = code_beq(SP, 1, 2);
             code_seq_add_to_end(&ret, compare_zero_code);
 
             // Push 0 (false) on stack, replacing remainder, not divisible
