@@ -39,11 +39,11 @@ extern code_seq gen_code_expr(expr_t exp);
 
 extern code_seq gen_code_binary_op_expr(binary_op_expr_t exp);
 
-extern code_seq gen_code_op(token_t op, expr_kind_e typ);
+extern code_seq gen_code_op(token_t op);
 
 extern code_seq gen_code_arith_op(token_t arith_op);
 
-extern code_seq gen_code_rel_op(token_t rel_op, expr_kind_e typ);
+extern code_seq gen_code_rel_op(token_t rel_op);
 
 extern code_seq gen_code_ident(ident_t id);
 

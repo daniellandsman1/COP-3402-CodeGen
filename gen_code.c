@@ -11,6 +11,7 @@
 #include "utilities.h"
 #include "regname.h"
 #include "ast.h"
+#include "spl.tab.h"
 
 #define STACK_SPACE 4096
 
@@ -228,10 +229,11 @@ code_seq gen_code_condition(condition_t cond)
         case ck_rel:
             code_seq left_cs = gen_code_expr(cond.data.rel_op_cond.expr1);
             code_seq right_cs = gen_code_expr(cond.data.rel_op_cond.expr2);
-            code_seq rel_op_cs = gen_code_rel_op(cond.data.rel_op_cond.rel_op, expr_bin);
+            code_seq rel_op_cs = gen_code_rel_op(cond.data.rel_op_cond.rel_op);
 
-            code_seq_concat(&ret, left_cs);
+            // Push in reverse so expr1 ends up on top of stack
             code_seq_concat(&ret, right_cs);
+            code_seq_concat(&ret, left_cs);
             code_seq_concat(&ret, rel_op_cs);
             break;
 
@@ -276,6 +278,7 @@ code_seq gen_code_condition(condition_t cond)
             // Deallocate the 0 at top of stack, making the truth value the
             // new top of the stack
             code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+            code_seq_concat(&ret, dealloc_cs);
 
             //code *mod_code = code_mod(3, SP, 0); // Modulo instruction
             //code_seq_add_to_end(&ret, mod_code);
@@ -372,7 +375,7 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
     code_seq right_cs = gen_code_expr(*exp.expr2);
 
     // Generate operator code
-    code_seq op_cs = gen_code_op(exp.arith_op, expr_bin);
+    code_seq op_cs = gen_code_op(exp.arith_op);
 
     code_seq_concat(&ret, left_cs);
     code_seq_concat(&ret, right_cs);
@@ -383,38 +386,50 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
 
 // Generate code to apply an operator to the top two stack elements
 // and replace them with the result
-code_seq gen_code_op(token_t op, expr_kind_e typ)
+code_seq gen_code_op(token_t op)
 {
     code_seq ret = code_seq_empty();
 
     // Determine the operator type and generate the appropriate instruction
     switch (op.code)
     {
-        case '+': // Addition
+        case eqeqsym: case neqsym:
+        case ltsym: case leqsym:
+        case gtsym: case geqsym:
+            return gen_code_rel_op(op);
+            break;
+
+        case plussym: case minussym:
+        case multsym: case divsym:
+            return gen_code_arith_op(op);
+            break;
+
+        /*
+        case plussym: // Addition
             code_seq_add_to_end(&ret, code_add(SP, 0, SP, -1));
             break;
 
-        case '-': // Subtraction
+        case minussym: // Subtraction
             code_seq_add_to_end(&ret, code_sub(SP, 0, SP, -1));
             break;
 
-        case '*': // Multiplication
+        case multsym: // Multiplication
             code_seq_add_to_end(&ret, code_mul(SP, 0));
             break;
 
-        case '/': // Division
+        case divsym: // Division
             code_seq_add_to_end(&ret, code_div(SP, 0));
             break;
 
-        case '<': // Less than
+        case ltsym: // Less than
             code_seq_add_to_end(&ret, code_lt(typ));
             break;
 
-        case '>': // Greater than
+        case gtsym: // Greater than
             code_seq_add_to_end(&ret, code_gt(typ));
             break;
 
-        case '=': // Equal
+        case eqeqsym: // Equality
             code_seq_add_to_end(&ret, code_eq(typ));
             break;
 
@@ -425,22 +440,72 @@ code_seq gen_code_op(token_t op, expr_kind_e typ)
         case '|': // Logical OR
             code_seq_add_to_end(&ret, code_bor(SP, 0, SP, -1));
             break;
-
+        */
         default:
             bail_with_error("Unsupported operator in gen_code_op: '%c'", op.code);
+            break;
     }
 
-    return ret;
+    return code_seq_empty();
 }
 
 // Generate code to apply the floating point arith_op to the 2nd from top and top of the stack putting the result on top of the stack in their place
 code_seq gen_code_arith_op(token_t arith_op) {
-    return gen_code_op(arith_op, expr_bin);
+    return gen_code_op(arith_op);
 }
 
 // Gen code for rel_op applied to 2nd from top and top of the stack putting result on top of the stack in their place
-code_seq gen_code_rel_op(token_t rel_op, expr_kind_e typ) {
-    code_seq ret = code_seq_empty();
+code_seq gen_code_rel_op(token_t rel_op) 
+{
+    code_seq ret = code_seq_empty(); // Build up code sequence to return
+    code_seq op_cs = code_seq_empty(); // Sequence to do operation
+    
+    // Note: Both operands are already on top of the stack,
+    // with expr1 in SP and expr2 in SP + 1
+    switch (rel_op.code)
+    {
+        case eqeqsym:
+            op_cs = code_seq_singleton(code_beq(SP, 1, 2));
+            break;
+        case neqsym:
+            op_cs = code_seq_singleton(code_bne(SP, 1, 2));
+            break;
+        case ltsym:
+            op_cs = code_seq_singleton(code_sub(SP, 0, SP, 1));
+            code_seq_add_to_end(&op_cs, code_bltz(SP, 0, 2));
+            break;
+        case leqsym:
+            op_cs = code_seq_singleton(code_sub(SP, 0, SP, 1));
+            code_seq_add_to_end(&op_cs, code_blez(SP, 0, 2));
+            break;
+        case gtsym:
+            op_cs = code_seq_singleton(code_sub(SP, 0, SP, 1));
+            code_seq_add_to_end(&op_cs, code_bgtz(SP, 0, 2));
+            break;
+        case geqsym:
+            op_cs = code_seq_singleton(code_sub(SP, 0, SP, 1));
+            code_seq_add_to_end(&op_cs, code_bgez(SP, 0, 2));
+            break;
+        default:
+            bail_with_error("Unexpected relational operator in gen_code_rel_op!");
+            break;
+    }
+
+    // Add code for operation, may skip next two instructions
+    code_seq_concat(&ret, op_cs);
+
+    // Push 0 (false) on stack at SP + 1, will become top after dealloc
+    code_seq_add_to_end(&ret, code_lit(SP, 1, 0));
+    code_seq_add_to_end(&ret, code_jrel(1)); // Skip pushing true value
+
+    // Push 1 (true) on stack at SP + 1, will become top after dealloc
+    code_seq_add_to_end(&ret, code_lit(SP, 1, 1));
+
+    // Deallocate expr1 from stack, leaving truth value as new top
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+    code_seq_concat(&ret, dealloc_cs);
+
+    /* 
     switch (rel_op.code) {
         case '<': code_seq_add(&ret, code_lt(typ)); break;
         case '>': code_seq_add(&ret, code_gt(typ)); break;
@@ -448,6 +513,8 @@ code_seq gen_code_rel_op(token_t rel_op, expr_kind_e typ) {
         default:
             bail_with_error("Unexpected relational operator in gen_code_rel_op!");
     }
+    */
+
     return ret;
 }
 
@@ -466,10 +533,19 @@ code_seq gen_code_ident(ident_t id)
 // Generate code for a number
 code_seq gen_code_number(number_t num)
 {
-    code_seq ret = code_seq_empty();
+    code_seq ret = code_seq_empty(); // Build up code sequence to return
+
+    // Get literal's offset and allocate stack space  
     unsigned int offset = literal_table_find_or_add(num.text, num.value);
-    code *push_literal = code_lit(SP, 0, offset);
-    code_seq_add_to_end(&ret, push_literal);
+    code_seq alloc_cs = code_utils_allocate_stack_space(1);
+    code_seq_concat(&ret, alloc_cs);
+
+    // Use offset to push literal onto stack
+    code* push_lit_code = code_cpw(SP, 0, GP, offset);
+    code_seq_add_to_end(&ret, push_lit_code);
+
+    //code *push_literal = code_lit(SP, 0, offset); 
+    //code_seq_add_to_end(&ret, push_literal);
     return ret;
 }
 
