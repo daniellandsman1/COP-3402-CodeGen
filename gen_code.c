@@ -12,6 +12,7 @@
 #include "regname.h"
 #include "ast.h"
 #include "spl.tab.h"
+#include "instruction.h"
 
 #define STACK_SPACE 4096
 
@@ -174,9 +175,34 @@ code_seq gen_code_begin_stmt(block_stmt_t stmt) {
     return gen_code_stmts(stmt.block->stmts);
 }
 
+// Static counter for generating unique labels
+static unsigned int label_counter = 0;
+
+// Replicate logic for code_utils_new_label
+static unsigned int gen_code_new_label() {
+    return label_counter++;
+}
+
+// Replicate logic for code_label using jump
+static code* gen_code_label(unsigned int label) {
+    code* label_code = (code*)malloc(sizeof(code));
+    if (!label_code) {
+        bail_with_error("Memory allocation failed for label_code");
+    }
+
+    // Create a jump instruction with the label as the address
+    bin_instr_t instr;
+    instr.jump.op = JMPA_O; // Use the opcode for an absolute jump
+    instr.jump.addr = label; // Set the address to the label number
+
+    label_code->instr = instr;
+    label_code->next = NULL;
+
+    return label_code;
+}
+
 // Generate code for the IF statement
-code_seq gen_code_if_stmt(if_stmt_t stmt)
-{
+code_seq gen_code_if_stmt(if_stmt_t stmt) {
     code_seq ret = code_seq_empty();
 
     // Generate code for the condition
@@ -184,8 +210,8 @@ code_seq gen_code_if_stmt(if_stmt_t stmt)
     code_seq_concat(&ret, cond_cs);
 
     // Reserve labels for branching
-    unsigned int else_label = code_utils_new_label();
-    unsigned int end_label = stmt.else_stmts ? code_utils_new_label() : else_label;
+    unsigned int else_label = gen_code_new_label();
+    unsigned int end_label = stmt.else_stmts ? gen_code_new_label() : else_label;
 
     // Jump to else if condition is false
     code *branch_false = code_bne(3, 0, else_label); // 3 = result reg
@@ -196,23 +222,21 @@ code_seq gen_code_if_stmt(if_stmt_t stmt)
     code_seq_concat(&ret, then_cs);
 
     // If there is an else branch, jump to the end after executing "then"
-    if (stmt.else_stmts)
-    {
+    if (stmt.else_stmts) {
         code *jump_end = code_jmpa(end_label);
         code_seq_add_to_end(&ret, jump_end);
     }
 
     // Insert the "else" branch label
-    code_seq_add_to_end(&ret, code_label(else_label));
+    code_seq_add_to_end(&ret, gen_code_label(else_label));
 
     // Generate code for the "else" branch if it exists
-    if (stmt.else_stmts)
-    {
+    if (stmt.else_stmts) {
         code_seq else_cs = gen_code_stmts(*stmt.else_stmts);
         code_seq_concat(&ret, else_cs);
 
         // Insert the end label
-        code_seq_add_to_end(&ret, code_label(end_label));
+        code_seq_add_to_end(&ret, gen_code_label(end_label));
     }
 
     return ret;
