@@ -352,14 +352,33 @@ code_seq gen_code_expr(expr_t exp)
     {
         case expr_bin:
             return gen_code_binary_op_expr(exp.data.binary);
+            break;
         case expr_ident:
             return gen_code_ident(exp.data.ident);
+            break;
         case expr_number:
             return gen_code_number(exp.data.number);
+            break;
         case expr_negated:
-            return gen_code_logical_not_expr(*exp.data.negated.expr);
+            code_seq_concat(&ret, gen_code_expr(*exp.data.negated.expr));
+
+            // Allocate space to push a 0 on the stack
+            code_seq alloc_cs = code_utils_allocate_stack_space(1);
+            code_seq_concat(&ret, alloc_cs);
+            code_seq_add_to_end(&ret, code_lit(SP, 0, 0));
+
+            // Subtract value of expression from 0 to get negated version
+            code_seq_add_to_end(&ret, code_sub(SP, 1, SP, 1));
+
+            // Deallocate top of stack, leaving negated expression as new top
+            code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+            code_seq_concat(&ret, dealloc_cs);
+
+            return ret;
+            break;
         default:
             bail_with_error("Unexpected expression kind in gen_code_expr!");
+            break;
     }
 
     return ret;
@@ -388,7 +407,7 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
 // and replace them with the result
 code_seq gen_code_op(token_t op)
 {
-    code_seq ret = code_seq_empty();
+    //code_seq ret = code_seq_empty();
 
     // Determine the operator type and generate the appropriate instruction
     switch (op.code)
@@ -549,11 +568,14 @@ code_seq gen_code_number(number_t num)
     return ret;
 }
 
+/* I don't think SPL has a logical NOT expression
 // Generate code for a logical NOT expression
 code_seq gen_code_logical_not_expr(expr_t exp)
 {
-    code_seq expr_cs = gen_code_expr(exp);
+    // Evaluate expression and push onto stack
+    code_seq ret = gen_code_expr(exp);
     code *not_code = code_not();
     code_seq_add_to_end(&expr_cs, not_code);
-    return expr_cs;
+    return ret;
 }
+*/

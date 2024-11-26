@@ -49,7 +49,7 @@ extern code_seq gen_code_ident(ident_t id);
 
 extern code_seq gen_code_number(number_t num);
 
-extern code_seq gen_code_logical_not_expr(expr_t exp);
+//extern code_seq gen_code_logical_not_expr(expr_t exp); don't think it's needed
 
 #endif
 
