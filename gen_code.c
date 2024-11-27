@@ -15,6 +15,7 @@
 #include "instruction.h"
 
 #define STACK_SPACE 4096
+#define SAVED_STATIC_LINK_OFFSET (-3)
 
 // Initialize the code generator
 void gen_code_initialize()
@@ -72,10 +73,55 @@ static void gen_code_output_program(BOFFILE bf, code_seq main_cs)
 }
 
 // Generate code for the program's block and output it
-void gen_code_program(BOFFILE bf, block_t prog)
-{
-    code_seq main_cs = gen_code_stmts(prog.stmts);
-    gen_code_output_program(bf, main_cs);
+void gen_code_program(BOFFILE bf, block_t prog) {
+    // Create a sequence for the entire program
+    code_seq program_cs = code_seq_empty();
+
+    // Set up the program
+    code_seq setup_cs = code_utils_set_up_program();
+    code_seq_concat(&program_cs, setup_cs);
+
+    // Generate code for the program's block
+    code_seq block_cs = gen_code_block(prog);
+    code_seq_concat(&program_cs, block_cs);
+
+    // Tear down the program
+    code_seq teardown_cs = code_utils_tear_down_program();
+    code_seq_concat(&program_cs, teardown_cs);
+
+    // Output the program
+    gen_code_output_program(bf, program_cs);
+}
+
+// Generate code for a block
+code_seq gen_code_block(block_t block) {
+    code_seq ret = code_seq_empty();
+
+    // Save the current FP into $r3 (static link register)
+    code_seq save_fp_cs = code_utils_copy_regs(3, FP); // Save FP to $r3
+    code_seq_concat(&ret, save_fp_cs);
+
+    // Save registers for the activation record
+    code_seq save_cs = code_utils_save_registers_for_AR();
+    code_seq_concat(&ret, save_cs);
+
+    // Store the new FP as the saved static link
+    code *store_static_link = code_swr(FP, SAVED_STATIC_LINK_OFFSET, FP);
+    code_seq_add_to_end(&ret, store_static_link);
+
+    // Generate code for variable declarations
+    code_seq var_decls_cs = gen_code_var_decls(block.var_decls);
+    code_seq_concat(&ret, var_decls_cs);
+
+    // Generate code for statements
+    code_seq stmts_cs = gen_code_stmts(block.stmts);
+    code_seq_concat(&ret, stmts_cs);
+
+    // Restore registers from the activation record
+    code_seq restore_cs = code_utils_restore_registers_from_AR();
+    code_seq_concat(&ret, restore_cs);
+
+    return ret;
 }
 
 // Generate code for variable declarations
