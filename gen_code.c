@@ -159,6 +159,11 @@ code_seq gen_code_assign_stmt(assign_stmt_t stmt)
 // Generate code for a list of statements
 code_seq gen_code_stmts(stmts_t stmts)
 {
+    if (stmts.stmts_kind == empty_stmts_e)
+    {
+        return code_seq_singleton(code_nop());
+    }
+
     code_seq ret = code_seq_empty();
     stmt_t *sp = stmts.stmt_list.start;
     while (sp != NULL)
