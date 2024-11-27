@@ -142,8 +142,6 @@ code_seq code_utils_set_up_program()
     // set up the saved registers
     ret = code_utils_copy_regs(3, FP);  // save FP into $r3
     code_seq_concat(&ret, code_utils_save_registers_for_AR());
-    // use what will be the new FP as the saved static link
-    code_seq_add_to_end(&ret, code_swr(FP, SAVED_STATIC_LINK_OFFSET, FP));
     return ret;
 }
 

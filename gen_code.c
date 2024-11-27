@@ -97,6 +97,10 @@ void gen_code_program(BOFFILE bf, block_t prog) {
 code_seq gen_code_block(block_t block) {
     code_seq ret = code_seq_empty();
 
+    // Store the new FP as the saved static link
+    code *store_static_link = code_swr(FP, SAVED_STATIC_LINK_OFFSET, FP);
+    code_seq_add_to_end(&ret, store_static_link);
+
     // Save the current FP into $r3 (static link register)
     code_seq save_fp_cs = code_utils_copy_regs(3, FP); // Save FP to $r3
     code_seq_concat(&ret, save_fp_cs);
@@ -105,9 +109,9 @@ code_seq gen_code_block(block_t block) {
     code_seq save_cs = code_utils_save_registers_for_AR();
     code_seq_concat(&ret, save_cs);
 
-    // Store the new FP as the saved static link
-    code *store_static_link = code_swr(FP, SAVED_STATIC_LINK_OFFSET, FP);
-    code_seq_add_to_end(&ret, store_static_link);
+    // Store the new FP as the saved static link (moved to top of function)
+    //code *store_static_link = code_swr(FP, SAVED_STATIC_LINK_OFFSET, FP);
+    //code_seq_add_to_end(&ret, store_static_link);
 
     // Generate code for variable declarations
     code_seq var_decls_cs = gen_code_var_decls(block.var_decls);
