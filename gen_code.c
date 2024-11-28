@@ -193,6 +193,31 @@ code_seq gen_code_var_decl(var_decl_t vd)
     return ret;
 }
 
+// Updated gen_code_ident_list 
+code_seq gen_code_ident_list(ident_list_t ident_list)
+{
+    printf("Generating code for an identifier list... New edition!\n");
+    code_seq ret = code_seq_empty();
+    ident_t *idp = ident_list.start; // Start with the first identifier
+    
+    while (idp != NULL)
+    {
+        // Allocate room on the stack for the identifier
+        code_seq alloc_and_init_cs = code_utils_allocate_stack_space(1);
+        
+        // Initialize to 0
+        code_seq_add_to_end(&alloc_and_init_cs, code_lit(SP, 0, 0));
+        
+        // Append in reverse order
+        code_seq temp = ret;  
+        ret = alloc_and_init_cs;  
+        code_seq_concat(&ret, temp); 
+        idp = idp->next;
+    }
+    return ret;
+}
+
+/*
 // Generate code for an identifier list
 code_seq gen_code_ident_list(ident_list_t ident_list)
 {
@@ -224,6 +249,7 @@ code_seq gen_code_ident_list(ident_list_t ident_list)
     printf("Finished generating code for an identifier list.\n");
     return ret;
 }
+*/
 
 // Generate code for a statement
 code_seq gen_code_stmt(stmt_t stmt)
@@ -476,7 +502,7 @@ code_seq gen_code_condition(condition_t cond)
             code_seq_add_to_end(&ret, push_false_code);
 
             // Skip over next instruction that pushes true on stack
-            code* skip_push_one_code = code_jrel(1);
+            code* skip_push_one_code = code_jrel(2);
             code_seq_add_to_end(&ret, skip_push_one_code);
 
             // Put 1 (true) on stack, divisible
@@ -648,26 +674,26 @@ code_seq gen_code_rel_op(token_t rel_op)
     switch (rel_op.code)
     {
         case eqeqsym:
-            op_cs = code_seq_singleton(code_beq(SP, 1, 2));
+            op_cs = code_seq_singleton(code_beq(SP, 1, 3));
             break;
         case neqsym:
-            op_cs = code_seq_singleton(code_bne(SP, 1, 2));
+            op_cs = code_seq_singleton(code_bne(SP, 1, 3));
             break;
         case ltsym:
             op_cs = code_seq_singleton(code_sub(SP, 0, SP, 1));
-            code_seq_add_to_end(&op_cs, code_bltz(SP, 0, 2));
+            code_seq_add_to_end(&op_cs, code_bltz(SP, 0, 3));
             break;
         case leqsym:
             op_cs = code_seq_singleton(code_sub(SP, 0, SP, 1));
-            code_seq_add_to_end(&op_cs, code_blez(SP, 0, 2));
+            code_seq_add_to_end(&op_cs, code_blez(SP, 0, 3));
             break;
         case gtsym:
             op_cs = code_seq_singleton(code_sub(SP, 0, SP, 1));
-            code_seq_add_to_end(&op_cs, code_bgtz(SP, 0, 2));
+            code_seq_add_to_end(&op_cs, code_bgtz(SP, 0, 3));
             break;
         case geqsym:
             op_cs = code_seq_singleton(code_sub(SP, 0, SP, 1));
-            code_seq_add_to_end(&op_cs, code_bgez(SP, 0, 2));
+            code_seq_add_to_end(&op_cs, code_bgez(SP, 0, 3));
             break;
         default:
             bail_with_error("Unexpected relational operator in gen_code_rel_op!");
@@ -679,7 +705,7 @@ code_seq gen_code_rel_op(token_t rel_op)
 
     // Push 0 (false) on stack at SP + 1, will become top after dealloc
     code_seq_add_to_end(&ret, code_lit(SP, 1, 0));
-    code_seq_add_to_end(&ret, code_jrel(1)); // Skip pushing true value
+    code_seq_add_to_end(&ret, code_jrel(2)); // Skip pushing true value
 
     // Push 1 (true) on stack at SP + 1, will become top after dealloc
     code_seq_add_to_end(&ret, code_lit(SP, 1, 1));
