@@ -51,7 +51,13 @@ extern code_seq gen_code_number(number_t num);
 
 extern code_seq gen_code_block(block_t block);
 
-//extern code_seq gen_code_logical_not_expr(expr_t exp); don't think it's needed
+// Functions for handling constant declarations and definitions
+extern code_seq gen_code_constDecls(const_decls_t cds);
+
+extern code_seq gen_code_constDecl(const_decl_t cd);
+
+extern code_seq gen_code_const_def_list(const_def_list_t cdl);
+
+extern code_seq gen_code_constDef(const_def_t cdf);
 
 #endif
-
