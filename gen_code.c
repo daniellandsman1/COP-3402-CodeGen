@@ -297,6 +297,7 @@ code_seq gen_code_begin_stmt(block_stmt_t stmt) {
     return gen_code_stmts(stmt.block->stmts);
 }
 
+/*
 // Static counter for generating unique labels
 static unsigned int label_counter = 0;
 
@@ -304,7 +305,9 @@ static unsigned int label_counter = 0;
 static unsigned int gen_code_new_label() {
     return label_counter++;
 }
+*/
 
+/*
 // Replicate logic for code_label using jump
 static code* gen_code_label(unsigned int label) {
     code* label_code = (code*)malloc(sizeof(code));
@@ -322,7 +325,9 @@ static code* gen_code_label(unsigned int label) {
 
     return label_code;
 }
+*/
 
+/*
 // Generate code for the IF statement
 code_seq gen_code_if_stmt(if_stmt_t stmt) {
     code_seq ret = code_seq_empty();
@@ -360,6 +365,63 @@ code_seq gen_code_if_stmt(if_stmt_t stmt) {
         // Insert the end label
         code_seq_add_to_end(&ret, gen_code_label(end_label));
     }
+
+    return ret;
+}
+*/
+
+// Generate code for the IF statement (offset instead of label)
+code_seq gen_code_if_stmt(if_stmt_t stmt) {
+    code_seq ret = code_seq_empty();
+    unsigned int curr_offset = 0;  // Initialize current offset
+
+    // Generate code for the condition
+    code_seq cond_cs = gen_code_condition(stmt.condition);
+    code_seq_concat(&ret, cond_cs);
+    
+    printf("DEBUG: DOING IF CONDITION!\n");
+
+    // The result of the condition is now on the stack: 0 (false) or 1 (true)
+    // We want to jump to the "else" block if false, or proceed with "then" if true
+    // Calculate the offsets for conditional branches
+    unsigned int skip_else_offset = 3;  // We'll skip 3 instructions for the "else" part
+    unsigned int end_offset = stmt.else_stmts ? 6 : 3;  // If there's an else, we skip 6 instructions; otherwise 3
+
+    // Branch to else if condition is false (using offset)
+    code *branch_false = code_bne(SP, 1, skip_else_offset); // Compare the condition (top of stack) to 0
+    code_seq_add_to_end(&ret, branch_false);
+    curr_offset += skip_else_offset;
+
+    // Generate code for the "then" branch
+    code_seq then_cs = gen_code_stmts(*stmt.then_stmts);
+    code_seq_concat(&ret, then_cs);
+    curr_offset += code_seq_size(then_cs);
+
+    // If there is an else branch, jump to the end after executing "then"
+    if (stmt.else_stmts) {
+        code *jump_end = code_jrel(end_offset);  // Jump to the end offset after "then" part
+        code_seq_add_to_end(&ret, jump_end);
+        curr_offset += 3;  // Add 3 to the offset for the jump instruction
+    }
+
+    // Insert the "else" branch code
+    code_seq_add_to_end(&ret, code_lit(SP, 1, 0)); // Push 0 (false) onto the stack
+    curr_offset += 3;  // Account for the instruction
+
+    // Generate code for the "else" branch if it exists
+    if (stmt.else_stmts) {
+        code_seq else_cs = gen_code_stmts(*stmt.else_stmts);
+        code_seq_concat(&ret, else_cs);
+        curr_offset += code_seq_size(else_cs);
+    }
+
+    // Push 1 (true) if the condition is true and the "else" block isn't executed
+    code_seq_add_to_end(&ret, code_lit(SP, 1, 1));
+    curr_offset += 3;  // Account for this instruction
+
+    // Deallocate space for the condition result (top of stack) and update stack
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+    code_seq_concat(&ret, dealloc_cs);
 
     return ret;
 }
