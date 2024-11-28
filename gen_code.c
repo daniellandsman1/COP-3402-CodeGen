@@ -35,19 +35,23 @@ static void gen_code_output_seq(BOFFILE bf, code_seq cs)
 }
 
 // Generate a BOF header for the program
-static BOFHeader gen_code_program_header(code_seq main_cs)
-{
+static BOFHeader gen_code_program_header(code_seq main_cs) {
     BOFHeader header;
-    bof_write_magic_to_header(&header);
+    bof_write_magic_to_header(&header); // Write magic using provided function
     header.text_start_address = 0;
-    header.text_length = code_seq_size(main_cs) * BYTES_PER_WORD;
 
-    int data_start = MAX(header.text_length, 1024) + BYTES_PER_WORD;
+    // Calculate text length in bytes
+    header.text_length = code_seq_size(main_cs);
+
+    // Calculate data start address
+    int data_start = MAX(header.text_length, 1024);
     header.data_start_address = data_start;
-    header.data_length = literal_table_size() * BYTES_PER_WORD;
 
-    int stack_bottom = data_start + header.data_length + STACK_SPACE;
-    header.stack_bottom_addr = stack_bottom;
+    // Set the data length for word literals
+    header.data_length = literal_table_size();
+
+    // Calculate stack bottom address (no int literals included)
+    header.stack_bottom_addr = data_start + header.data_length + STACK_SPACE;
 
     return header;
 }
@@ -70,6 +74,9 @@ static void gen_code_output_program(BOFFILE bf, code_seq main_cs)
     bof_write_header(bf, header);
     gen_code_output_seq(bf, main_cs);
     gen_code_output_literals(bf);
+
+    // Exit immediately to test if the program encounters errors
+    exit(0); // Temporary addition for debugging
 }
 
 // Generate code for the program's block and output it
@@ -97,6 +104,13 @@ void gen_code_program(BOFFILE bf, block_t prog) {
 code_seq gen_code_block(block_t block) {
     code_seq ret = code_seq_empty();
 
+    // Handle empty blocks (generate EXIT for top-level empty block)
+    if (block.var_decls.var_decls == NULL && block.stmts.stmt_list.start == NULL) {
+        code *exit_instr = code_exit(0);
+        code_seq_add_to_end(&ret, exit_instr);
+        return ret;
+    }
+
     // Store the new FP as the saved static link
     code *store_static_link = code_swr(FP, SAVED_STATIC_LINK_OFFSET, FP);
     code_seq_add_to_end(&ret, store_static_link);
@@ -108,10 +122,6 @@ code_seq gen_code_block(block_t block) {
     // Save registers for the activation record
     code_seq save_cs = code_utils_save_registers_for_AR();
     code_seq_concat(&ret, save_cs);
-
-    // Store the new FP as the saved static link (moved to top of function)
-    //code *store_static_link = code_swr(FP, SAVED_STATIC_LINK_OFFSET, FP);
-    //code_seq_add_to_end(&ret, store_static_link);
 
     // Generate code for variable declarations
     code_seq var_decls_cs = gen_code_var_decls(block.var_decls);
